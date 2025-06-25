@@ -6,14 +6,36 @@ from sqlalchemy import text
 from concurrent.futures import ThreadPoolExecutor
 from setu import *
 from llm import *
+from gacha import *
 import threading
+import os
+import random
 lock = threading.Lock()
+import numpy as np
 
 # 创建一个线程池，最大线程数为10
 pool_executor = ThreadPoolExecutor(max_workers=10)
 pool2_executor = ThreadPoolExecutor(max_workers=5)
 pool3_executor = ThreadPoolExecutor(max_workers=5)
-greet = '''Ciallo～(∠・ω< )⌒★,version: 0.0.2
+greet = '''Ciallo～(∠・ω< )⌒★,
+这里是代号：泛用型小樊（还没拿到版号555）
+
+命令前加斜杠：
+help查看本消息
+总结 [条目数/分钟数][条/分]
+来一份图
+抽卡
+issue
+班味排行榜
+班味比重榜
+收录@群友
+语录@群友
+
+找真人小樊询问详细使用方法。
+根据相关规定，应答时间调整至3-5秒，且2点-8点不会应答消息。
+问就是未成年人保护系统。
+'''
+'''
 
 /help 查看本消息
 
@@ -21,7 +43,8 @@ greet = '''Ciallo～(∠・ω< )⌒★,version: 0.0.2
 示例：/获取 条目 100 群内 ，意思是获取当前最新的100条群消息的txt
 
 /总结 [条目/时间] [条目数/分钟数] [群内/私聊] 使用llm总结聊天记录
-示例：/总结 条目 100 群内 ，意思是总结当前最新的100条群消息
+可简化为 /总结 [条目数/分钟数][条/分]
+示例：/总结 条目 100 群内 或/总结 100条，意思是总结当前最新的100条群消息
 
 /来一份图 来一份二次元美图（感谢东来哥的api）
 
@@ -48,7 +71,7 @@ with app.app_context():
 
 def insert_message_to_db(group,msg,index):
     global app, db, now_id
-    if msg.type != 'friend' and msg.type != 'self' and msg.type != 'group':
+    if (msg.type != 'friend' and msg.type != 'group') or msg[0]=="Self":
         return False
     conten=msg[1].split('引用  的消息')[0]
     if len(conten)>500:
@@ -73,6 +96,28 @@ def insert_message_to_db(group,msg,index):
             db.session.rollback()
             return False
    
+def insert_moto_to_db(name, word,chat):
+    global app, db
+    with app.app_context():
+        try:
+            sql = text("""
+            INSERT INTO moto (name, word)
+            VALUES (:name, :word)
+                    """)
+            params = {
+                'name': name,
+                'word': word
+            }
+            db.session.execute(sql, params)
+            db.session.commit()
+            with lock:
+                chat.SendMsg(f"已收录：{name} - {word}")
+            
+        except Exception as e:
+            print(f"Error inserting moto to DB: {e}")
+            db.session.rollback()
+            with lock:
+                chat.SendMsg("收录失败，内容重复")
 
 def select_record(group, limit=2000):
     limit = int(min(limit, 2000))  # 限制最大查询条数为2000
@@ -93,6 +138,33 @@ def select_record_by_time(group, minutes=10):
         params = {'group': group, 'minutes': minutes}
         result = db.session.execute(sql, params)
         return result.fetchall()
+
+def select_moto(name,chat):
+    global app, db
+    with app.app_context():
+        try:
+            sql = text("""
+            SELECT word FROM moto WHERE name = :name
+            """)
+            params = {'name': name}
+            result = db.session.execute(sql, params)
+            motos=result.fetchall()
+            if motos:
+                response = f"以下是{name}的语录\n\n" + ("\n".join([f"{moto.word}" for moto in motos]))
+            else:
+                response = f"没有找到{name}的语录"
+            
+        except Exception as e:
+            print(f"Error selecting moto from DB: {e}")
+            response = "查询失败"
+
+        finally:
+            with lock:
+                chat.SendMsg(response)
+    
+
+                    
+        
 
 def response_to_user(chat, count, scope, group, msg):
     global wx
@@ -148,9 +220,16 @@ def conclusion_process(chat, count, scope, group, msg, type):
         print(f"Error responding to user: {e}")
 
 def toil_rank(chat):
-    records = select_record_by_time(chat.who, 1440)
+    records = select_record_by_time(chat.who, 1430)
     text_content = "\n".join([f"{record.name}: {record.content}" for record in reversed(records)])
-    response = llm(text_content,job="在以下的消息记录中，请你总结谁讨论上班话题最多，并给出排名")
+    response = llm(text_content,job="在以下的消息记录中，请你统计谁讨论上班话题最多，并给出排名")
+    with lock:
+        chat.SendMsg(response)
+
+def toil_rank2(chat):
+    records = select_record_by_time(chat.who, 1430)
+    text_content = "\n".join([f"{record.name}: {record.content}" for record in reversed(records)])
+    response = llm(text_content,job="在以下的消息记录中，请你统计谁讨论上班话题所占其发言的比重最高，并给出排名")
     with lock:
         chat.SendMsg(response)
 
@@ -162,7 +241,7 @@ def daily_news(group):
         response = llm(text_content,job="请你总结聊天记录生成群聊日报")
         today = time.strftime("%Y-%m-%d", time.localtime())
         weekday = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'][time.localtime().tm_wday]
-        dictum = ["好可爱啊，想看你加班", "嗨，想班了吗？", "已在工位，消息秒回", "最喜欢可爱的班班了", "周末愉快，上班就是为了不上班", "周末愉快，但是还有14个小时就周一了"][time.localtime().tm_wday]
+        dictum = ["好可爱啊，想看你加班", "嗨，想班了吗？", "已在工位，消息秒回", "最喜欢可爱的班班了","TGIF!", "周末愉快，上班就是为了不上班", "周末愉快，但是还有14个小时就周一了"][time.localtime().tm_wday]
         with lock:
             if group != "咖啡馆大群":
                 wx.SendMsg(f"今天是 {today}，{weekday}\n{dictum}\n{response}",who=group)
@@ -182,6 +261,8 @@ def setu_process(chat):
         with lock:
             chat.SendMsg('好吧好吧，就给你一张吧')
         filename = download_image()
+        # files = os.listdir('./temp')
+        # filename = random.choice(files) if files else None
         with lock:
             if filename:
                 chat.SendFiles(f'./temp/{filename}')
@@ -189,6 +270,20 @@ def setu_process(chat):
                 chat.SendMsg('下载图片失败了呢，555...')
     except Exception as e:
         print(f"Error in setu_process: {e}")
+
+def chouka_process(result,chat):
+    with lock:
+        if result == 0:
+            chat.SendMsg('四星')
+            files = os.listdir("./0")
+        elif result == 1:
+            chat.SendMsg('五星常驻，Bear')
+            files = os.listdir("./1")
+        elif result == 2:
+            chat.SendMsg('五星限定，彩虹果酱w')
+            files = os.listdir("./2")
+        file = np.random.choice(files)
+        chat.SendFiles(f'./{result}/{file}')
 
 def service_judge(person,service,group,time,threshold):
     with app.app_context():
@@ -236,12 +331,12 @@ def order_analysis(msg, chat, group):
         elif ('发' in parts[0][1:4] or '来' in parts[0][1:4]) and '图' in parts[0][2:]:
             #TODO:这里有时间把异步做了
             if group == "咖啡馆大群":
-                if service_judge("ALL","setu",group,1440,5):
+                if service_judge("ALL","setu",group,1440,10):
                     pool2_executor.submit(setu_process, chat)
                 else:
                     chat.SendMsg("杂鱼，一天之内只能要五张哦")
             else:
-                if service_judge(msg[0],"setu",group,1,1):
+                if service_judge(msg[0],"setu",group,2,1):
                     pool2_executor.submit(setu_process, chat)
                 else:
                     chat.SendMsg("杂鱼，不要涩涩的这么频繁啊")
@@ -259,7 +354,7 @@ def order_analysis(msg, chat, group):
                     pool2_executor.submit(response_to_user2, chat, count, scope, group, msg)
                     pass
             else:
-                chat.SendMsg(f'命令解析失败')
+                chat.SendMsg(f'不知道你在说什么喵？')
         
         elif parts[0][1:3] == '总结':
             if len(parts) >= 4:
@@ -267,30 +362,101 @@ def order_analysis(msg, chat, group):
                 count = int(parts[2])
                 scope = parts[3]
                 if command == '条目':
-                    chat.SendMsg(f'正在总结{group}的最新{count}条记录，请稍等...')
+                    chat.SendMsg(f'{group}的最新{count}条记录在总结中')
                     pool3_executor.submit(conclusion_process, chat, count, scope, group, msg, 1)
                 elif command == '时间':
-                    chat.SendMsg(f'正在总结{group}的{count}分钟内的记录，请稍等...')
+                    chat.SendMsg(f'{group}最新的{count}分钟的记录在总结中')
                     pool3_executor.submit(conclusion_process, chat, count, scope, group, msg, 2)
                     pass
+
+            elif len(parts) == 3:
+                num = int(parts[1][:-1])
+                command = parts[2]
+                if command == '条':
+                    chat.SendMsg(f'{group}的最新{num}条记录在总结中')
+                    pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 1)
+                elif command == '分' or command == '分钟':
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中')
+                    pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 2)
+
+            elif len(parts) == 2:
+                num = int(parts[1][:-1])
+                command = parts[1][-1]
+                if command == '条':
+                    chat.SendMsg(f'{group}的最新{num}条记录在总结中')
+                    pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 1)
+                elif command == '分':
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中')
+                    pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 2)
+            
+            elif len(parts) == 1:
+                num = int(parts[0][3:-1])
+                command = parts[0][-1]
+                if command == '条':
+                    chat.SendMsg(f'{group}的最新{num}条记录在总结中')
+                    pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 1)
+                elif command == '分':
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中')
+                    pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 2)
+            
             else:
-                chat.SendMsg(f'命令解析失败')
+                chat.SendMsg(f'不知道你在说什么喵？')
         
-        elif parts[0][1:6] == '班味排行榜':
-            chat.SendMsg(f'正在生成最近24小时的班味排名')
+        elif parts[0][1:3] == '收录':
+            word = msg[1].split('引用  的消息 : ')[1]
+            if ('@' in msg[1].split('\n')[0]):
+                if ("已收录：" in word) or ("以下是" in word):
+                    chat.SendMsg(f'禁止套娃！')
+                else:
+                    person = msg[1].split('\n')[0].split('@')[1]
+                    pool2_executor.submit(insert_moto_to_db, person, word, chat)
+            else:
+                chat.SendMsg(f'不知道你在说什么喵？')
+
+        elif parts[0][1:3] == '语录':
+            if ('@' in msg[1].split('\n')[0]):
+                person = msg[1].split('\n')[0].split('@')[1]
+                pool2_executor.submit(select_moto, person, chat)
+
+            else:
+                chat.SendMsg(f'不知道你在说什么喵？')
+
+        elif parts[0][1:3] == '抽卡':
+            if group == "咖啡馆大群":
+                if service_judge("ALL","setu",group,1440,10):
+                    pool2_executor.submit(chouka_process, chouka.draw(), chat)
+                else:
+                    chat.SendMsg("杂鱼，一天之内只能要10张哦")
+            else:
+                if service_judge(msg[0],"setu",group,2,1):
+                    pool2_executor.submit(chouka_process, chouka.draw(), chat)
+                else:
+                    chat.SendMsg("杂鱼，不要涩涩的这么频繁啊")
+            
+            
+        
+        elif parts[0][1:4] == '班味排':
+            chat.SendMsg(f'最近24小时的班味排名即将出炉')
             pool3_executor.submit(toil_rank,chat)
+
+        elif parts[0][1:4] == '班味比':
+            chat.SendMsg(f'最近24小时的班味比重排名即将出炉')
+            pool3_executor.submit(toil_rank2,chat)
 
 
         elif parts[0][1:] == 'issue':
-            chat.SendMsg("已收到反馈，呼叫小樊")
+            chat.SendMsg("已收到反馈，呼叫小樊",at="小樊" )
 
         else:
-            chat.SendMsg(f'未知命令，请输入 /help 查看帮助信息')
+            chat.SendMsg(f'不知道你在说什么喵？')
     except Exception as e:
         print(f"Error in order_analysis: {e}")
         if e == IndexError:
-            chat.SendMsg(f'命令解析失败，请检查输入格式是否正确')
+            chat.SendMsg(f'理解不了你在说什么喵~')
+        else:
+            chat.SendMsg(f'好像有什么错误喵~')
 
+chouka = GachaSimulator()
 
 wx = WeChat()
 
@@ -298,7 +464,7 @@ wx = WeChat()
 listen_list = [
     '咖啡馆大群',
     '咖啡馆打工人分部',
-    '咖啡馆大湾区分馆',
+    '咖啡馆大湾区分馆'
 ]
 
 flag1 = 0    
@@ -307,7 +473,7 @@ flag1 = 0
 for i in listen_list:
     wx.AddListenChat(who=i)
 
-wait = 1  # 设置3秒查看一次是否新消息
+wait = 3  # 设置3秒查看一次是否新消息
 
 while True:
     try:
@@ -316,32 +482,30 @@ while True:
         for chat in msgs:
             group=chat.who  # 获取聊天对象的昵称
             one_msgs = msgs.get(chat)   # 获取消息内容
+            # 消息处理
+            if time.localtime().tm_hour<=1 or time.localtime().tm_hour>=8:
+                for msg in one_msgs:
+                    if (msg[1] == None) or (msg[1] == ''):
+                        continue
+                    if msg.type == 'sys':
+                        print(f'【系统消息】{msg.content}')
+                    
+                    elif msg.type == 'friend' or msg.type == 'group':
+                        print(msg)
+                        if msg[1][0] == '/':
+                            with lock:
+                                order_analysis(msg, chat, group)
+
             ret=pool_executor.map(insert_message_to_db, [group] * len(one_msgs), one_msgs,range(len(one_msgs)))  # 异步插入消息到数据库
             print(list(ret))  # 打印插入结果
             now_id += len(one_msgs)
-            # 消息处理
-            for msg in one_msgs:
-                if (msg[1] == None) or (msg[1] == ''):
-                    continue
-                if msg.type == 'sys':
-                    print(f'【系统消息】{msg.content}')
-                
-                elif msg.type == 'friend' or msg.type == 'group' or msg.type == 'self':
-                    print(msg)
-                    if msg[1][0] == '/':
-                        with lock:
-                            order_analysis(msg, chat, group)
 
         if time.localtime().tm_hour==10 and time.localtime().tm_min==0 and flag1 == 0:
             flag1 = 1
             for thegroup in listen_list:
                 pool3_executor.submit(daily_news,thegroup)
 
-                # elif msg.type == 'time':
-                #     print(f'\n【时间消息】{msg.time}')
-        
-                # elif msg.type == 'recall':
-                #     print(f'【撤回消息】{msg.content}')
+                
         time.sleep(wait)  # 等待一段时间后继续监听
     except KeyboardInterrupt:
         print('Bye~')
