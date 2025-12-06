@@ -7,12 +7,14 @@ from concurrent.futures import ThreadPoolExecutor
 from setu import *
 from llm import *
 from gacha import *
+from db_exute import *
 import threading
 import os
 import random
-lock = threading.Lock()
+
 import numpy as np
 
+now_id = 0  # 用于记录当前record表id的最大值
 # 创建一个线程池，最大线程数为10
 pool_executor = ThreadPoolExecutor(max_workers=10)
 pool2_executor = ThreadPoolExecutor(max_workers=5)
@@ -56,13 +58,6 @@ issue
 
 '''
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Fzm&20011202@localhost:3306/wx_record'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_POOL_SIZE'] = 15
-app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
-now_id = 0  # 用于记录当前record表id的最大值
-db = SQLAlchemy(app)
 with app.app_context():
     # 查询record表id字段的最大值，使用SQLAlchemy连接池
     result = db.session.execute(text("SELECT MAX(id) FROM record"))
@@ -73,7 +68,7 @@ def insert_message_to_db(group,msg,index):
     global app, db, now_id
     if (msg.type != 'friend' and msg.type != 'group') or msg[0]=="Self":
         return False
-    conten=msg[1].split('引用  的消息')[0]
+    conten=msg[1].split('引用  的消息')[0].split('\n')[0]  # 获取消息内容，去掉引用部分
     if len(conten)>500:
         return False
     with app.app_context():
@@ -95,72 +90,6 @@ def insert_message_to_db(group,msg,index):
             print(f"Error inserting message to DB: {e}")
             db.session.rollback()
             return False
-   
-def insert_moto_to_db(name, word,chat):
-    global app, db
-    with app.app_context():
-        try:
-            sql = text("""
-            INSERT INTO moto (name, word)
-            VALUES (:name, :word)
-                    """)
-            params = {
-                'name': name,
-                'word': word
-            }
-            db.session.execute(sql, params)
-            db.session.commit()
-            with lock:
-                chat.SendMsg(f"已收录：{name} - {word}")
-            
-        except Exception as e:
-            print(f"Error inserting moto to DB: {e}")
-            db.session.rollback()
-            with lock:
-                chat.SendMsg("收录失败，内容重复")
-
-def select_record(group, limit=2000):
-    limit = int(min(limit, 2000))  # 限制最大查询条数为2000
-    with app.app_context():
-        sql = text("""
-        SELECT * FROM record WHERE chat = :group
-        ORDER BY id DESC LIMIT"""+ f" {limit}")
-        params = {'group': group}
-        result = db.session.execute(sql, params)
-        return result.fetchall()
-    
-def select_record_by_time(group, minutes=10):
-    minutes = int(min(minutes, 1440))  # 限制最大查询时间为1440分钟
-    with app.app_context():
-        sql = text("""
-        SELECT * FROM record WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE
-        ORDER BY id DESC""")
-        params = {'group': group, 'minutes': minutes}
-        result = db.session.execute(sql, params)
-        return result.fetchall()
-
-def select_moto(name,chat):
-    global app, db
-    with app.app_context():
-        try:
-            sql = text("""
-            SELECT word FROM moto WHERE name = :name
-            """)
-            params = {'name': name}
-            result = db.session.execute(sql, params)
-            motos=result.fetchall()
-            if motos:
-                response = f"以下是{name}的语录\n\n" + ("\n".join([f"{moto.word}" for moto in motos]))
-            else:
-                response = f"没有找到{name}的语录"
-            
-        except Exception as e:
-            print(f"Error selecting moto from DB: {e}")
-            response = "查询失败"
-
-        finally:
-            with lock:
-                chat.SendMsg(response)
     
 
                     
@@ -275,51 +204,16 @@ def chouka_process(result,chat):
     with lock:
         if result == 0:
             chat.SendMsg('四星')
-            files = os.listdir("./0")
+            file = np.random.choice(os.listdir("./0"))
         elif result == 1:
-            chat.SendMsg('五星常驻，Bear')
-            files = os.listdir("./1")
+            file = np.random.choice(os.listdir("./1"))
+            chat.SendMsg('五星常驻，'+file.split('.')[0])
         elif result == 2:
-            chat.SendMsg('五星限定，彩虹果酱w')
-            files = os.listdir("./2")
-        file = np.random.choice(files)
+            chat.SendMsg('五星限定，园酱')
+            file = np.random.choice(os.listdir("./2"))
         chat.SendFiles(f'./{result}/{file}')
 
-def service_judge(person,service,group,time,threshold):
-    with app.app_context():
-        if person == 'ALL':
-            sql = text("""
-                SELECT COUNT(*) FROM request
-                WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE
-            """)
-            params = {'group': group, 'minutes': time}
-        else:
-            sql = text("""
-                SELECT COUNT(*) FROM request
-                WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE AND name = :person
-            """)
-            params = {'group': group, 'minutes': time, 'person': person}
-        result = db.session.execute(sql, params)
-        count = result.scalar()
-        if count>=threshold:
-            return False
-        else:
-            try:
-                
-                sql_insert = text("""
-                    INSERT INTO request (name, time, chat, service)
-                    VALUES (:name, NOW(), :chat, :service)
-                """)
-                params_insert = {'name': person, 'chat': group, 'service': service}
-                db.session.execute(sql_insert, params_insert)
-                db.session.commit()
-                
-            except Exception as e:
-                print(f"Error inserting message to DB: {e}")
-                db.session.rollback()
-                
-            finally:
-                return True
+
 
 
 def order_analysis(msg, chat, group):
@@ -409,7 +303,7 @@ def order_analysis(msg, chat, group):
                     chat.SendMsg(f'禁止套娃！')
                 else:
                     person = msg[1].split('\n')[0].split('@')[1]
-                    pool2_executor.submit(insert_moto_to_db, person, word, chat)
+                    pool2_executor.submit(motto_process, person, word, chat)
             else:
                 chat.SendMsg(f'不知道你在说什么喵？')
 
@@ -462,9 +356,8 @@ wx = WeChat()
 
 # 首先设置一个监听列表，列表元素为指定好友（或群聊）的昵称
 listen_list = [
-    '咖啡馆大群',
-    '咖啡馆打工人分部',
-    '咖啡馆大湾区分馆'
+    
+    '咖啡馆打工人分部'
 ]
 
 flag1 = 0    
