@@ -67,7 +67,7 @@ pip install flask,flask_sqlalchemy
 
 
 ### 第四步
-编辑环境变量 ARK_API_key 为你的火山引擎密钥
+编辑用户环境变量 ARK_API_KEY 为你的火山引擎密钥
 
 ### 第五步
 clone该仓库，修改.vscode中设置的python额外路径到wxauto库的路径，项目目录下创建文件夹0，1，2放入你的抽卡素材。创建文件夹temp用于收集下载的图片。修改跟踪的群聊名称。完成后启动运行listen.py启动服务。
