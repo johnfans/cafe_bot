@@ -1,4 +1,5 @@
 from wxauto import WeChat
+from wxauto.msgs import FriendMessage
 import time
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -14,7 +15,6 @@ import random
 
 import numpy as np
 
-now_id = 0  # 用于记录当前record表id的最大值
 # 创建一个线程池，最大线程数为10
 pool_executor = ThreadPoolExecutor(max_workers=10)
 pool2_executor = ThreadPoolExecutor(max_workers=5)
@@ -41,8 +41,6 @@ issue
 
 /help 查看本消息
 
-/获取 [条目/时间] [条目数/分钟数] [群内/私聊] 获取聊天记录的txt
-示例：/获取 条目 100 群内 ，意思是获取当前最新的100条群消息的txt
 
 /总结 [条目/时间] [条目数/分钟数] [群内/私聊] 使用llm总结聊天记录
 可简化为 /总结 [条目数/分钟数][条/分]
@@ -58,34 +56,32 @@ issue
 
 '''
 
-with app.app_context():
-    # 查询record表id字段的最大值，使用SQLAlchemy连接池
-    result = db.session.execute(text("SELECT MAX(id) FROM record"))
-    now_id = result.scalar()+1
 
-
-def insert_message_to_db(group,msg,index):
-    global app, db, now_id
-    if (msg.type != 'friend' and msg.type != 'group') or msg[0]=="Self":
+def insert_message_to_db(group,msg):
+    global app, db
+    if msg.sender == "system" or msg.type == "base":
         return False
-    conten=msg[1].split('引用  的消息')[0].split('\n')[0]  # 获取消息内容，去掉引用部分
+    conten=msg.content
+    if msg.sender == 'self':
+        return False
+    
     if len(conten)>500:
         return False
     with app.app_context():
         try:
             sql = text("""
-            INSERT INTO record (id, chat, name, time, content)
-            VALUES (:id, :group, :name, NOW(), :content)
+            INSERT INTO record (chat, name, time, content)
+            VALUES (:group, :name, NOW(), :content)
                     """)
             params = {
-                'id': now_id+index,
                 'group': group,
-                'name': msg[0],
+                'name': msg.sender,
                 'content': conten  # 不存储引用部分
             }
             db.session.execute(sql, params)
             db.session.commit()
-            return now_id+index
+            print("已插入")
+            return True
         except Exception as e:
             print(f"Error inserting message to DB: {e}")
             db.session.rollback()
@@ -94,38 +90,6 @@ def insert_message_to_db(group,msg,index):
 
                     
         
-
-def response_to_user(chat, count, scope, group, msg):
-    global wx
-    try:
-        records = select_record(group, int(count))
-        filename = f"./temp/{group}-"+time.strftime("%Y%m%d-%H%M%S",time.localtime())+"-records.txt"
-        with open(filename, "w", encoding="utf-8") as f:
-            for record in reversed(records):
-                f.write(f"{record.name}: {record.content}\n")
-        with lock:
-            if scope == '群内':
-                chat.SendFiles(filename)
-            elif scope == '私聊':
-                wx.SendFiles(filename, who=msg.sender)    
-    except Exception as e:
-        print(f"Error responding to user: {e}")
-
-def response_to_user2(chat, minute, scope, group, msg):
-    global wx
-    try:
-        records = select_record_by_time(group, minute)
-        filename = f"./temp/{group}-"+time.strftime("%Y%m%d-%H%M%S",time.localtime())+"-records.txt"
-        with open(filename, "w", encoding="utf-8") as f:
-            for record in reversed(records):
-                f.write(f"{record.name}: {record.content}\n")
-        with lock: 
-            if scope == '群内':
-                chat.SendFiles(filename)
-            elif scope == '私聊':
-                wx.SendFiles(filename, who=msg.sender)    
-    except Exception as e:
-        print(f"Error responding to user: {e}")
 
 def conclusion_process(chat, count, scope, group, msg, type):
     global wx
@@ -219,7 +183,7 @@ def chouka_process(result,chat):
 def order_analysis(msg, chat, group):
     global wx
     try:
-        parts = msg[1].split('\n')[0].split()
+        parts = msg.content.split('\n')[0].split()
         if parts[0][1:] == 'help' or parts[0][1:] == '帮助':
             chat.SendMsg(greet)
         elif ('发' in parts[0][1:4] or '来' in parts[0][1:4]) and '图' in parts[0][2:]:
@@ -230,25 +194,10 @@ def order_analysis(msg, chat, group):
                 else:
                     chat.SendMsg("杂鱼，一天之内只能要五张哦")
             else:
-                if service_judge(msg[0],"setu",group,2,1):
+                if service_judge(msg.sender,"setu",group,2,1):
                     pool2_executor.submit(setu_process, chat)
                 else:
                     chat.SendMsg("杂鱼，不要涩涩的这么频繁啊")
-
-        elif parts[0][1:3] == '获取':
-            if len(parts) >= 4:
-                command = parts[1]
-                count = int(parts[2])
-                scope = parts[3]
-                if command == '条目':
-                    chat.SendMsg(f'正在获取{group}的最新{count}条记录，请稍等...')
-                    pool2_executor.submit(response_to_user, chat, count, scope, group, msg)
-                elif command == '时间':
-                    chat.SendMsg(f'正在获取{group}的{count}分钟内的记录，请稍等...')
-                    pool2_executor.submit(response_to_user2, chat, count, scope, group, msg)
-                    pass
-            else:
-                chat.SendMsg(f'不知道你在说什么喵？')
         
         elif parts[0][1:3] == '总结':
             if len(parts) >= 4:
@@ -297,19 +246,22 @@ def order_analysis(msg, chat, group):
                 chat.SendMsg(f'不知道你在说什么喵？')
         
         elif parts[0][1:3] == '收录':
-            word = msg[1].split('引用  的消息 : ')[1]
-            if ('@' in msg[1].split('\n')[0]):
+            if msg.type != 'quote':
+                chat.SendMsg(f'收录命令需要引用一条消息喵~')
+                return
+            word = msg.quote_content
+            if ('@' in msg.content.split('\n')[0]):
                 if ("已收录：" in word) or ("以下是" in word):
                     chat.SendMsg(f'禁止套娃！')
                 else:
-                    person = msg[1].split('\n')[0].split('@')[1]
+                    person = msg.content.split('\n')[0].split('@')[1]
                     pool2_executor.submit(motto_process, person, word, chat)
             else:
                 chat.SendMsg(f'不知道你在说什么喵？')
 
         elif parts[0][1:3] == '语录':
-            if ('@' in msg[1].split('\n')[0]):
-                person = msg[1].split('\n')[0].split('@')[1]
+            if ('@' in msg.content.split('\n')[0]):
+                person = msg.content.split('\n')[0].split('@')[1]
                 pool2_executor.submit(select_moto, person, chat)
 
             else:
@@ -322,7 +274,7 @@ def order_analysis(msg, chat, group):
                 else:
                     chat.SendMsg("杂鱼，一天之内只能要10张哦")
             else:
-                if service_judge(msg[0],"setu",group,2,1):
+                if service_judge(msg.sender,"setu",group,2,1):
                     pool2_executor.submit(chouka_process, chouka.draw(), chat)
                 else:
                     chat.SendMsg("杂鱼，不要涩涩的这么频繁啊")
@@ -354,52 +306,41 @@ chouka = GachaSimulator()
 
 wx = WeChat()
 
-# 首先设置一个监听列表，列表元素为指定好友（或群聊）的昵称
-listen_list = [
-    
-    '咖啡馆打工人分部'
-]
 
-flag1 = 0    
+flag1 = 0
 
-# 然后调用`AddListenChat`方法添加监听对象，其中可选参数`savepic`为是否保存新消息图片
-for i in listen_list:
-    wx.AddListenChat(who=i)
-
-wait = 3  # 设置3秒查看一次是否新消息
-
-while True:
+def messege_handler(msg,chat):
+    # 消息处理
     try:
-        msgs = wx.GetListenMessage()
-        #print("msgs",msgs)
-        for chat in msgs:
-            group=chat.who  # 获取聊天对象的昵称
-            one_msgs = msgs.get(chat)   # 获取消息内容
-            # 消息处理
-            if time.localtime().tm_hour<=1 or time.localtime().tm_hour>=8:
-                for msg in one_msgs:
-                    if (msg[1] == None) or (msg[1] == ''):
-                        continue
-                    if msg.type == 'sys':
-                        print(f'【系统消息】{msg.content}')
-                    
-                    elif msg.type == 'friend' or msg.type == 'group':
-                        print(msg)
-                        if msg[1][0] == '/':
-                            with lock:
-                                order_analysis(msg, chat, group)
+        pool_executor.submit(insert_message_to_db,chat.who,msg)
+        if time.localtime().tm_hour<=1 or time.localtime().tm_hour>=8:
+            if (msg.content == None) or (msg.content == ''):
+                return
+            if msg.attr == 'system' or msg.type == 'base':
+                print(f'【系统消息】{msg.content}')
+            
+            elif msg.attr == 'friend':
+                print(f'【{chat.who}】【{msg.sender}】{msg.content}')
+                if msg.content[0] == '/':
+                    with lock:
+                        order_analysis(msg, chat, "咖啡馆打工人分部")
+    except Exception as e:
+        print(f"Error in messege_handler: {e}")
 
-            ret=pool_executor.map(insert_message_to_db, [group] * len(one_msgs), one_msgs,range(len(one_msgs)))  # 异步插入消息到数据库
-            print(list(ret))  # 打印插入结果
-            now_id += len(one_msgs)
+wx.AddListenChat(nickname="咖啡馆打工人分部", callback=messege_handler)
 
-        if time.localtime().tm_hour==10 and time.localtime().tm_min==0 and flag1 == 0:
-            flag1 = 1
-            for thegroup in listen_list:
-                pool3_executor.submit(daily_news,thegroup)
+wx.KeepRunning()
+
+
+
+
+    #     if time.localtime().tm_hour==10 and time.localtime().tm_min==0 and flag1 == 0:
+    #         flag1 = 1
+    #         for thegroup in listen_list:
+    #             pool3_executor.submit(daily_news,thegroup)
 
                 
-        time.sleep(wait)  # 等待一段时间后继续监听
-    except KeyboardInterrupt:
-        print('Bye~')
-        break
+    #     time.sleep(wait)  # 等待一段时间后继续监听
+    # except KeyboardInterrupt:
+    #     print('Bye~')
+    #     break

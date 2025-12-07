@@ -1,8 +1,6 @@
 # cafe_bot
 # 咖啡馆小樊bot
-项目目前代码不规范，注释混乱，且依赖版本过旧。目前仅供群友嘲笑，不开放给群友编辑。将在代码整理完后开放权限。
-
-有需要微信里找小樊，不认识我的当没看见这个项目。
+项目目前已更新至最新版本的框架，但仍然部分缺少注释，编码过程中有问题随时群里联系。
 
 ## 项目技术栈及依赖
 - 开发语言：Python
@@ -16,7 +14,7 @@
 
 Python 3.10及以上
 
-wxauto 3.9.11.17.5版本（后续会更新到开源版最新版本）
+wxauto 39.1.18版本
 
 微信电脑版 3.9.12
 
@@ -43,7 +41,38 @@ llm.py: 对接火山引擎大模型
 
 
 ## 快速开始
-现在快速开始不了一点
+### 第一步
+安装wxauto框架，由于原作者停止维护了，所以从我那里clone下来后安装
+```bash
+git clone https://github.com/johnfans/wxauto.git
+
+cd "path-to-wxauto"
+
+pip install -e .
+```
+
+### 第二步
+搭建数据库。直接用导航猫连接你的MySQL数据库，运行sql_struct里面的所有sql文件。
+
+### 第三步
+安装必要的库
+```bash
+#安装火山引擎SDK
+pip install volcengine-python-sdk[ark]
+#安装数据库驱动
+pip install pyodbc,PyMySQL
+#安装flask框架及数据库连接池
+pip install flask,flask_sqlalchemy
+```
+
+
+### 第四步
+编辑环境变量 ARK_API_key 为你的火山引擎密钥
+
+### 第五步
+clone该仓库，修改.vscode中设置的python额外路径到wxauto库的路径，项目目录下创建文件夹0，1，2放入你的抽卡素材。创建文件夹temp用于收集下载的图片。修改跟踪的群聊名称。完成后启动运行listen.py启动服务。
+
+
 
 
 

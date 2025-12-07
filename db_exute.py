@@ -49,7 +49,7 @@ def select_record(group, limit=2000):
         return result.fetchall()
     
 def select_record_by_time(group, minutes=10):
-    minutes = int(min(minutes, 1440))  # 限制最大查询时间为1440分钟
+    minutes = int(min(minutes, 1500))  # 限制最大查询时间为1500分钟
     with app.app_context():
         sql = text("""
         SELECT * FROM record WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE

@@ -1,34 +1,21 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from wxauto import WeChat
+from wxauto.msgs import FriendMessage
+import time
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://username:password@localhost:3306/dbname'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_POOL_SIZE'] = 10
-app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
+wx = WeChat()
 
-db = SQLAlchemy(app)
+# 消息处理函数
+def on_message(msg, chat):
+    # 示例1：将消息记录到本地文件
+    print("已触发")
+    print(msg.content)
+    print(msg.sender)
+    print(msg.type)
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
+    ...# 其他处理逻辑，配合Message类的各种方法，可以实现各种功能
 
-# 查询所有用户
-def get_all_users():
-    return User.query.all()
+# 添加监听，监听到的消息用on_message函数进行处理
+wx.AddListenChat(nickname="咖啡馆打工人分部", callback=on_message)
 
-# 插入新用户
-def add_user(name):
-    user = User(name=name)
-    db.session.add(user)
-    db.session.commit()
-    return user
-
-# 示例用法
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        add_user('Alice')
-        users = get_all_users()
-        for user in users:
-            print(user.id, user.name)
+# 保持程序运行
+wx.KeepRunning()
