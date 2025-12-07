@@ -261,8 +261,14 @@ def order_analysis(msg, chat, group):
 
         elif parts[0][1:3] == '语录':
             if ('@' in msg.content.split('\n')[0]):
-                person = msg.content.split('\n')[0].split('@')[1]
-                pool2_executor.submit(select_moto, person, chat)
+                if parts[0][1:5] == '语录检索' and len(parts) >=2:
+                    keyword = parts[1].split('@')[0]
+                    person = msg.content.split('\n')[0].split('@')[1]
+                    pool2_executor.submit(select_moto_with_keyword, person, chat, keyword)
+                    
+                else:
+                    person = msg.content.split('\n')[0].split('@')[1]
+                    pool2_executor.submit(select_moto, person, chat)
 
             else:
                 chat.SendMsg(f'不知道你在说什么喵？')

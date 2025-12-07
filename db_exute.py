@@ -84,6 +84,36 @@ def select_moto(name,chat):
             with lock:
                 chat.SendMsg(response)
 
+def select_moto_with_keyword(name,chat,keyword):
+    global app, db, lock
+    with app.app_context():
+        try:
+            sql = text("""
+            SELECT m.word
+            FROM name_relate nr
+            JOIN moto m ON nr.name = m.name
+            WHERE nr.atname = :atname
+            """)
+            params = {'atname': name}
+            result = db.session.execute(sql, params)
+            motos=result.fetchall()
+            if motos:
+                filtered = [moto.word for moto in motos if keyword in moto.word]
+                if filtered:
+                    response = f"以下是{name}包含{keyword}的语录\n\n" + ("\n".join(filtered))
+                else:
+                    response = f"没有找到{name}包含{keyword}的语录"
+            else:
+                response = f"没有找到{name}的语录"
+            
+        except Exception as e:
+            print(f"Error selecting moto from DB: {e}")
+            response = "查询失败"
+
+        finally:
+            with lock:
+                chat.SendMsg(response)
+
 def service_judge(person,service,group,time,threshold):
     with app.app_context():
         if person == 'ALL':
