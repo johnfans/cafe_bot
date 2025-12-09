@@ -266,18 +266,16 @@ def order_analysis(msg, chat, group):
                     person = msg.content.split('\n')[0].split('@')[1]
                     pool2_executor.submit(select_moto_with_keyword, person, chat, keyword)
                 
-                
+                elif parts[0][1:5] == '语录随机':
+                    person = msg.content.split('\n')[0].split('@')[1]
+                    pool2_executor.submit(select_moto_random, chat, person)
                     
                 else:
                     person = msg.content.split('\n')[0].split('@')[1]
                     pool2_executor.submit(select_moto, person, chat)
             
             elif parts[0][1:5] == '语录随机':
-                if ('@' in msg.content.split('\n')[0]):
-                    person = msg.content.split('\n')[0].split('@')[1]
-                    pool2_executor.submit(select_moto_random, chat, person)
-                else:
-                    pool2_executor.submit(select_moto_random, chat)
+                pool2_executor.submit(select_moto_random, chat)
 
             else:
                 chat.SendMsg(f'不知道你在说什么喵？')
