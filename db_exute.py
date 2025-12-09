@@ -114,6 +114,42 @@ def select_moto_with_keyword(name,chat,keyword):
             with lock:
                 chat.SendMsg(response)
 
+def select_moto_random(chat, name=None):
+    global app, db, lock
+    with app.app_context():
+        try:
+            if name:
+                sql = text("""
+                SELECT m.*
+                FROM name_relate nr
+                JOIN moto m ON nr.name = m.name
+                WHERE nr.atname = :atname
+                ORDER BY RAND() LIMIT 1
+                """)
+                params = {'atname': name}
+            else:
+                sql = text("""
+                SELECT m.*
+                FROM name_relate nr
+                JOIN moto m ON nr.name = m.name
+                ORDER BY RAND() LIMIT 1
+                """)
+                params = {'atname': name}
+            result = db.session.execute(sql, params)
+            moto=result.fetchone()
+            if moto:
+                response = f"随机语录：{moto.word} —— {moto.name}"
+            else:
+                response = f"没有找到语录"
+        except Exception as e:
+            response = f"查询失败"
+            print(f"Error selecting moto from DB: {e}")
+        
+        finally:
+            with lock:
+                chat.SendMsg(response)
+            
+
 def service_judge(person,service,group,time,threshold):
     with app.app_context():
         if person == 'ALL':

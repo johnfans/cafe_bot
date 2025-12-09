@@ -265,10 +265,19 @@ def order_analysis(msg, chat, group):
                     keyword = parts[1].split('@')[0]
                     person = msg.content.split('\n')[0].split('@')[1]
                     pool2_executor.submit(select_moto_with_keyword, person, chat, keyword)
+                
+                
                     
                 else:
                     person = msg.content.split('\n')[0].split('@')[1]
                     pool2_executor.submit(select_moto, person, chat)
+            
+            elif parts[0][1:5] == '语录随机':
+                if ('@' in msg.content.split('\n')[0]):
+                    person = msg.content.split('\n')[0].split('@')[1]
+                    pool2_executor.submit(select_moto_random, chat, person)
+                else:
+                    pool2_executor.submit(select_moto_random, chat)
 
             else:
                 chat.SendMsg(f'不知道你在说什么喵？')
@@ -328,6 +337,7 @@ def messege_handler(msg,chat):
             elif msg.attr == 'friend':
                 print(f'【{chat.who}】【{msg.sender}】{msg.content}')
                 if msg.content[0] == '/':
+                    time.sleep(random.uniform(2,5))
                     with lock:
                         order_analysis(msg, chat, "咖啡馆打工人分部")
     except Exception as e:
