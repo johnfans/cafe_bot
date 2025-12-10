@@ -64,6 +64,9 @@ def insert_message_to_db(group,msg):
     conten=msg.content
     if msg.sender == 'self':
         return False
+
+    if conten[0] == '/':
+        return False
     
     if len(conten)>500:
         return False
@@ -254,8 +257,11 @@ def order_analysis(msg, chat, group):
                 if ("已收录：" in word) or ("以下是" in word):
                     chat.SendMsg(f'禁止套娃！')
                 else:
-                    person = msg.content.split('\n')[0].split('@')[1]
-                    pool2_executor.submit(motto_process, person, word, chat)
+                    if service_judge(msg.sender,"motto",group,1440,5):
+                        person = msg.content.split('\n')[0].split('@')[1]
+                        pool2_executor.submit(motto_process, person, word, chat)
+                    else:
+                        chat.SendMsg("24小时之内只能收录5次喵~")
             else:
                 chat.SendMsg(f'不知道你在说什么喵？')
 

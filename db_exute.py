@@ -130,15 +130,21 @@ def select_moto_random(chat, name=None):
             else:
                 sql = text("""
                 SELECT m.*
-                FROM name_relate nr
-                JOIN moto m ON nr.name = m.name
-                ORDER BY RAND() LIMIT 1
+                FROM moto m
+                JOIN (
+                  SELECT DISTINCT name
+                  FROM name_relate
+                  ORDER BY RAND()
+                  LIMIT 1
+                ) nr ON m.name = nr.name
+                ORDER BY RAND()
+                LIMIT 1;
                 """)
-                params = {'atname': name}
+                params = {}
             result = db.session.execute(sql, params)
             moto=result.fetchone()
             if moto:
-                response = f"随机语录：{moto.word} —— {moto.name}"
+                response = f"随机语录：\n{moto.word} —— {moto.name}"
             else:
                 response = f"没有找到语录"
         except Exception as e:
