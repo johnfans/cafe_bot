@@ -162,14 +162,16 @@ def service_judge(person,service,group,time,threshold):
             sql = text("""
                 SELECT COUNT(*) FROM request
                 WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE
+                AND service = :service
             """)
-            params = {'group': group, 'minutes': time}
+            params = {'group': group, 'minutes': time, 'service': service}
         else:
             sql = text("""
                 SELECT COUNT(*) FROM request
                 WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE AND name = :person
+                AND service = :service
             """)
-            params = {'group': group, 'minutes': time, 'person': person}
+            params = {'group': group, 'minutes': time, 'person': person, 'service': service}
         result = db.session.execute(sql, params)
         count = result.scalar()
         if count>=threshold:
