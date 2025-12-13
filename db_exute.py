@@ -30,13 +30,13 @@ def insert_moto_to_db(name, word,chat):
             db.session.execute(sql, params)
             db.session.commit()
             with lock:
-                chat.SendMsg(f"已收录：{name} - {word}")
+                chat.SendMsg(f"已收录：{name} - {word}喵~")
             
         except Exception as e:
             print(f"Error inserting moto to DB: {e}")
             db.session.rollback()
             with lock:
-                chat.SendMsg("收录失败，内容重复")
+                chat.SendMsg("收录失败，内容重复喵~")
 
 def select_record(group, limit=2000):
     limit = int(min(limit, 2000))  # 限制最大查询条数为2000
@@ -72,13 +72,13 @@ def select_moto(name,chat):
             result = db.session.execute(sql, params)
             motos=result.fetchall()
             if motos:
-                response = f"以下是{name}的语录\n\n" + ("\n".join([f"{moto.word}" for moto in motos]))
+                response = f"以下是{name}的语录喵~\n\n" + ("\n".join([f"{moto.word}" for moto in motos]))
             else:
-                response = f"没有找到{name}的语录"
+                response = f"没有找到{name}的语录喵~"
             
         except Exception as e:
             print(f"Error selecting moto from DB: {e}")
-            response = "查询失败"
+            response = "查询失败喵~"
 
         finally:
             with lock:
@@ -100,15 +100,15 @@ def select_moto_with_keyword(name,chat,keyword):
             if motos:
                 filtered = [moto.word for moto in motos if keyword in moto.word]
                 if filtered:
-                    response = f"以下是{name}包含{keyword}的语录\n\n" + ("\n".join(filtered))
+                    response = f"以下是{name}包含{keyword}的语录喵~\n\n" + ("\n".join(filtered))
                 else:
-                    response = f"没有找到{name}包含{keyword}的语录"
+                    response = f"没有找到{name}包含{keyword}的语录喵~"
             else:
-                response = f"没有找到{name}的语录"
+                response = f"没有找到{name}的语录喵~"
             
         except Exception as e:
             print(f"Error selecting moto from DB: {e}")
-            response = "查询失败"
+            response = "查询失败喵~"
 
         finally:
             with lock:
@@ -146,9 +146,9 @@ def select_moto_random(chat, name=None):
             if moto:
                 response = f"随机语录：\n{moto.word} —— {moto.name}"
             else:
-                response = f"没有找到语录"
+                response = f"没有找到语录喵~"
         except Exception as e:
-            response = f"查询失败"
+            response = f"查询失败喵~"
             print(f"Error selecting moto from DB: {e}")
         
         finally:
@@ -258,13 +258,13 @@ def motto_process(atname, word, chat):
             chat.SendMsg("找不到引用喵~")
     elif ret == 0:
         with lock:
-            chat.SendMsg(f"已关联：{atname} ")
+            chat.SendMsg(f"已关联：{atname} 喵~")
     elif ret == -2:
         with lock:
-            chat.SendMsg(f"{atname}关联冲突，如果不是整活请联系小樊处理")
+            chat.SendMsg(f"{atname}关联冲突，如果不是整活请联系小樊处理喵~")
     elif ret == -3:
         with lock:
-            chat.SendMsg("发生错误了喵~，请提交issue")
+            chat.SendMsg("发生错误了喵~，请提交issue喵~")
             
 
 

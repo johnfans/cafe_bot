@@ -62,14 +62,18 @@ def insert_message_to_db(group,msg):
     if msg.sender == "system" or msg.type == "base":
         return False
     conten=msg.content
-    if msg.sender == 'self':
-        return False
-
-    if conten[0] == '/':
-        return False
-    
+    usr = msg.sender
     if len(conten)>500:
         return False
+    
+    if msg.sender == 'self':
+        if len(conten) >100 or conten == '[图片]':
+            return False
+        elif ("喵~" in conten) or ("杂鱼" in conten) or ("记录在总结中" in conten) or ("记录在分析中" in conten) or ("已关联" in conten) or ("已收录" in conten) or ("随机语录" in conten):
+            usr = "bot"
+        else:
+            usr = "南航大-樊卓铭"
+    
     with app.app_context():
         try:
             sql = text("""
@@ -78,7 +82,7 @@ def insert_message_to_db(group,msg):
                     """)
             params = {
                 'group': group,
-                'name': msg.sender,
+                'name': usr,
                 'content': conten  # 不存储引用部分
             }
             db.session.execute(sql, params)
@@ -115,6 +119,25 @@ def conclusion_process(chat, count, scope, group, msg, type):
     except Exception as e:
         print(f"Error responding to user: {e}")
 
+def analyze_process(chat, count, group, type, prompt):
+    global wx
+    try:
+        if type == 2:
+            records = select_record_by_time(group, count)
+        else:
+            records = select_record(group, int(count))
+        
+        text_content = "\n".join([f"{record.name}: {record.content}" for record in reversed(records)])
+        
+        
+        response=llm(text_content,job=prompt)
+        with lock:
+            chat.SendMsg(response)
+            
+    
+    except Exception as e:
+        print(f"Error responding to user: {e}")
+
 def toil_rank(chat):
     records = select_record_by_time(chat.who, 1430)
     text_content = "\n".join([f"{record.name}: {record.content}" for record in reversed(records)])
@@ -128,6 +151,7 @@ def toil_rank2(chat):
     response = llm(text_content,job="在以下的消息记录中，请你统计谁讨论上班话题所占其发言的比重最高，并给出排名")
     with lock:
         chat.SendMsg(response)
+
 
 def daily_news(group):
     global flag1,wx
@@ -155,7 +179,7 @@ def setu_process(chat):
     try:
         global wx
         with lock:
-            chat.SendMsg('好吧好吧，就给你一张吧')
+            chat.SendMsg('好吧好吧，就给你一张吧，喵~')
         filename = download_image()
         # files = os.listdir('./temp')
         # filename = random.choice(files) if files else None
@@ -163,20 +187,20 @@ def setu_process(chat):
             if filename:
                 chat.SendFiles(f'./temp/{filename}')
             else:
-                chat.SendMsg('下载图片失败了呢，555...')
+                chat.SendMsg('下载图片失败了呢，呜喵~')
     except Exception as e:
         print(f"Error in setu_process: {e}")
 
 def chouka_process(result,chat):
     with lock:
         if result == 0:
-            chat.SendMsg('四星')
+            chat.SendMsg('四星喵~')
             file = np.random.choice(os.listdir("./0"))
         elif result == 1:
             file = np.random.choice(os.listdir("./1"))
-            chat.SendMsg('五星常驻，'+file.split('.')[0])
+            chat.SendMsg('喵~五星常驻，'+file.split('.')[0])
         elif result == 2:
-            chat.SendMsg('五星限定，园酱')
+            chat.SendMsg('五星限定，园酱喵~')
             file = np.random.choice(os.listdir("./2"))
         chat.SendFiles(f'./{result}/{file}')
 
@@ -208,10 +232,10 @@ def order_analysis(msg, chat, group):
                 count = int(parts[2])
                 scope = parts[3]
                 if command == '条目':
-                    chat.SendMsg(f'{group}的最新{count}条记录在总结中')
+                    chat.SendMsg(f'{group}的最新{count}条记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, count, scope, group, msg, 1)
                 elif command == '时间':
-                    chat.SendMsg(f'{group}最新的{count}分钟的记录在总结中')
+                    chat.SendMsg(f'{group}最新的{count}分钟的记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, count, scope, group, msg, 2)
                     pass
 
@@ -219,34 +243,34 @@ def order_analysis(msg, chat, group):
                 num = int(parts[1][:-1])
                 command = parts[2]
                 if command == '条':
-                    chat.SendMsg(f'{group}的最新{num}条记录在总结中')
+                    chat.SendMsg(f'{group}的最新{num}条记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 1)
                 elif command == '分' or command == '分钟':
-                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中')
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 2)
 
             elif len(parts) == 2:
                 num = int(parts[1][:-1])
                 command = parts[1][-1]
                 if command == '条':
-                    chat.SendMsg(f'{group}的最新{num}条记录在总结中')
+                    chat.SendMsg(f'{group}的最新{num}条记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 1)
                 elif command == '分':
-                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中')
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 2)
             
             elif len(parts) == 1:
                 num = int(parts[0][3:-1])
                 command = parts[0][-1]
                 if command == '条':
-                    chat.SendMsg(f'{group}的最新{num}条记录在总结中')
+                    chat.SendMsg(f'{group}的最新{num}条记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 1)
                 elif command == '分':
-                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中')
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在总结中喵~')
                     pool3_executor.submit(conclusion_process, chat, num, "群内", group, msg, 2)
             
             else:
-                chat.SendMsg(f'不知道你在说什么喵？')
+                chat.SendMsg(f'不知道你在说什么喵~？')
         
         elif parts[0][1:3] == '收录':
             if msg.type != 'quote':
@@ -255,7 +279,7 @@ def order_analysis(msg, chat, group):
             word = msg.quote_content
             if ('@' in msg.content.split('\n')[0]):
                 if ("已收录：" in word) or ("以下是" in word):
-                    chat.SendMsg(f'禁止套娃！')
+                    chat.SendMsg(f'禁止套娃！喵~')
                 else:
                     if service_judge(msg.sender,"motto",group,1440,5):
                         person = msg.content.split('\n')[0].split('@')[1]
@@ -263,7 +287,7 @@ def order_analysis(msg, chat, group):
                     else:
                         chat.SendMsg("24小时之内只能收录5次喵~")
             else:
-                chat.SendMsg(f'不知道你在说什么喵？')
+                chat.SendMsg(f'不知道你在说什么喵~？')
 
         elif parts[0][1:3] == '语录':
             if ('@' in msg.content.split('\n')[0]):
@@ -284,7 +308,7 @@ def order_analysis(msg, chat, group):
                 pool2_executor.submit(select_moto_random, chat)
 
             else:
-                chat.SendMsg(f'不知道你在说什么喵？')
+                chat.SendMsg(f'不知道你在说什么喵~？')
 
         elif parts[0][1:3] == '抽卡':
             if group == "咖啡馆大群":
@@ -301,19 +325,56 @@ def order_analysis(msg, chat, group):
             
         
         elif parts[0][1:4] == '班味排':
-            chat.SendMsg(f'最近24小时的班味排名即将出炉')
+            chat.SendMsg(f'最近24小时的班味排名即将出炉喵~')
             pool3_executor.submit(toil_rank,chat)
 
         elif parts[0][1:4] == '班味比':
-            chat.SendMsg(f'最近24小时的班味比重排名即将出炉')
+            chat.SendMsg(f'最近24小时的班味比重排名即将出炉喵~')
             pool3_executor.submit(toil_rank2,chat)
+        
+        elif parts[0][1:] == '分析':
+            if len(parts) == 4:
+                num = int(parts[1][:-1])
+                command = parts[2]
+                prompt = parts[3]
+                if command == '条':
+                    chat.SendMsg(f'{group}的最新{num}条记录在分析中喵~')
+                    pool3_executor.submit(analyze_process, chat, num, group, 1, prompt)
+                elif command == '分' or command == '分钟':
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在分析中喵~')
+                    pool3_executor.submit(analyze_process, chat, num, group, 2, prompt)
+
+            elif len(parts) == 3:
+                num = int(parts[1][:-1])
+                command = parts[1][-1]
+                prompt = parts[2]
+                if command == '条':
+                    chat.SendMsg(f'{group}的最新{num}条记录在分析中喵~')
+                    pool3_executor.submit(analyze_process, chat, num, group, 1, prompt)
+                elif command == '分':
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在分析中喵~')
+                    pool3_executor.submit(analyze_process, chat, num, group, 2, prompt)
+            
+            elif len(parts) == 2:
+                num = int(parts[0][3:-1])
+                command = parts[0][-1]
+                prompt = parts[1]
+                if command == '条':
+                    chat.SendMsg(f'{group}的最新{num}条记录在分析中喵~')
+                    pool3_executor.submit(analyze_process, chat, num, group, 1, prompt)
+                elif command == '分':
+                    chat.SendMsg(f'{group}最新的{num}分钟的记录在分析中喵~')
+                    pool3_executor.submit(analyze_process, chat, num, group, 2, prompt)
+            
+            else:
+                chat.SendMsg(f'不知道你在说什么喵~？')
 
 
         elif parts[0][1:] == 'issue':
-            chat.SendMsg("已收到反馈，呼叫小樊",at="小樊" )
+            chat.SendMsg("已收到反馈喵~，呼叫小樊",at="小樊" )
 
         else:
-            chat.SendMsg(f'不知道你在说什么喵？')
+            chat.SendMsg(f'不知道你在说什么喵~？')
     except Exception as e:
         print(f"Error in order_analysis: {e}")
         if e == IndexError:
@@ -338,7 +399,7 @@ def messege_handler(msg,chat):
             if msg.attr == 'system' or msg.type == 'base':
                 print(f'【系统消息】{msg.content}')
             
-            elif msg.attr == 'friend':
+            elif msg.attr == 'friend' or msg.attr == 'self':
                 print(f'【{chat.who}】【{msg.sender}】{msg.content}')
                 if msg.content[0] == '/':
                     time.sleep(random.uniform(2,5))
