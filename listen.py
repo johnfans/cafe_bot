@@ -332,7 +332,7 @@ def order_analysis(msg, chat, group):
             chat.SendMsg(f'最近24小时的班味比重排名即将出炉喵~')
             pool3_executor.submit(toil_rank2,chat)
         
-        elif parts[0][1:] == '分析':
+        elif parts[0][1:3] == '分析':
             if len(parts) == 4:
                 num = int(parts[1][:-1])
                 command = parts[2]
@@ -370,7 +370,7 @@ def order_analysis(msg, chat, group):
                 chat.SendMsg(f'不知道你在说什么喵~？')
 
 
-        elif parts[0][1:] == 'issue':
+        elif parts[0][1:6] == 'issue':
             chat.SendMsg("已收到反馈喵~，呼叫小樊",at="小樊" )
 
         else:
