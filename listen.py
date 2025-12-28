@@ -15,10 +15,20 @@ import random
 
 import numpy as np
 
+# 语录伪随机
+# 全局变量和初始化
+# with app.app_context():
+#     result=db.session.execute(text("SELECT value FROM global WHERE name = 'chouka_count'"))
+#     chouka_count=int(result.fetchone()[0]) if result else 0
+
+chouka = GachaSimulator()
+flag1 = 0
+
 # 创建一个线程池，最大线程数为10
 pool_executor = ThreadPoolExecutor(max_workers=10)
 pool2_executor = ThreadPoolExecutor(max_workers=5)
 pool3_executor = ThreadPoolExecutor(max_workers=5)
+wx = WeChat()
 greet = '''Ciallo～(∠・ω< )⌒★,
 这里是代号：泛用型小樊（还没拿到版号555）
 
@@ -192,6 +202,7 @@ def setu_process(chat):
         print(f"Error in setu_process: {e}")
 
 def chouka_process(result,chat):
+    
     with lock:
         if result == 0:
             chat.SendMsg('四星喵~')
@@ -369,6 +380,13 @@ def order_analysis(msg, chat, group):
             else:
                 chat.SendMsg(f'不知道你在说什么喵~？')
 
+        elif parts[0][1:5] == 'sudo':
+            if auth_judge(msg.sender,0):
+                if parts[1] == 'sql':
+                    sql_command = msg.content.split('\n',1)[1]
+                    result = exec_sql(sql_command)
+                    chat.SendMsg(f'SQL执行结果：\n{result}')
+                    
 
         elif parts[0][1:6] == 'issue':
             chat.SendMsg("已收到反馈喵~，呼叫小樊",at="小樊" )
@@ -381,13 +399,6 @@ def order_analysis(msg, chat, group):
             chat.SendMsg(f'理解不了你在说什么喵~')
         else:
             chat.SendMsg(f'好像有什么错误喵~')
-
-chouka = GachaSimulator()
-
-wx = WeChat()
-
-
-flag1 = 0
 
 def messege_handler(msg,chat):
     # 消息处理
