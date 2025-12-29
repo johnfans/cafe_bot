@@ -140,12 +140,15 @@ def select_moto_random(chat, name=None):
                 ORDER BY RAND() LIMIT 1
                 """)
                 params = {'atname': name}
+                result = db.session.execute(sql, params)
+                moto=result.fetchone()
             else:
                 if moto_index >= len(moto_list):
                     results=db.session.execute(text("SELECT * FROM moto ORDER BY RAND()"))
                     moto_list=results.fetchall()
                     moto_index=0
                 moto=moto_list[moto_index]
+                moto_index+=1
             if moto:
                 response = f"随机语录：\n{moto[1]} —— {moto[0]}"
             else:
