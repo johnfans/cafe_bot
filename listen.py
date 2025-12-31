@@ -385,7 +385,9 @@ def order_analysis(msg, chat, group):
                 if parts[1] == 'sql':
                     sql_command = msg.content.split('\n',1)[1]
                     result = exec_sql(sql_command)
-                    chat.SendMsg(f'SQL执行结果：\n{result}')
+                    chat.SendMsg(f'SQL执行结果喵~：\n{result}')
+            else:
+                chat.SendMsg(f'你没有权限使用喵~')
                     
 
         elif parts[0][1:6] == 'issue':
