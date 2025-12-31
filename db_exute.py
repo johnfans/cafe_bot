@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
+import random
 import threading
 lock = threading.Lock()
 
@@ -14,6 +15,16 @@ app.config['SQLALCHEMY_POOL_SIZE'] = 15
 app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
 
 db = SQLAlchemy(app)
+
+with app.app_context():
+    results=db.session.execute(text("SELECT * FROM moto ORDER BY RAND()"))
+    moto_list=results.fetchall()
+    moto_index=0
+
+def append_motto_tolist(name,word):
+    global moto_list
+    idx = random.randint(0, len(moto_list))
+    moto_list.insert(idx, (name,word))
    
 def insert_moto_to_db(name, word,chat):
     global app, db, lock
@@ -42,9 +53,11 @@ def select_record(group, limit=2000):
     limit = int(min(limit, 2000))  # 限制最大查询条数为2000
     with app.app_context():
         sql = text("""
-        SELECT * FROM record WHERE chat = :group
-        ORDER BY id DESC LIMIT"""+ f" {limit}")
-        params = {'group': group}
+            SELECT * FROM record WHERE chat = :group
+            ORDER BY id DESC
+            LIMIT :limit OFFSET 1
+            """)
+        params = {'group': group, 'limit': limit}
         result = db.session.execute(sql, params)
         return result.fetchall()
     
@@ -53,7 +66,7 @@ def select_record_by_time(group, minutes=10):
     with app.app_context():
         sql = text("""
         SELECT * FROM record WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE
-        ORDER BY id DESC""")
+        ORDER BY id DESC OFFSET 1""")
         params = {'group': group, 'minutes': minutes}
         result = db.session.execute(sql, params)
         return result.fetchall()
@@ -115,7 +128,7 @@ def select_moto_with_keyword(name,chat,keyword):
                 chat.SendMsg(response)
 
 def select_moto_random(chat, name=None):
-    global app, db, lock
+    global app, db, lock,moto_list,moto_index
     with app.app_context():
         try:
             if name:
@@ -128,23 +141,14 @@ def select_moto_random(chat, name=None):
                 """)
                 params = {'atname': name}
             else:
-                sql = text("""
-                SELECT m.*
-                FROM moto m
-                JOIN (
-                  SELECT DISTINCT name
-                  FROM name_relate
-                  ORDER BY RAND()
-                  LIMIT 1
-                ) nr ON m.name = nr.name
-                ORDER BY RAND()
-                LIMIT 1;
-                """)
-                params = {}
-            result = db.session.execute(sql, params)
-            moto=result.fetchone()
+                if moto_index >= len(moto_list):
+                    results=db.session.execute(text("SELECT * FROM moto ORDER BY RAND()"))
+                    moto_list=results.fetchall()
+                    moto_index=0
+                moto=moto_list[moto_index]
+                moto_index+=1
             if moto:
-                response = f"随机语录：\n{moto.word} —— {moto.name}"
+                response = f"随机语录：\n{moto[1]} —— {moto[0]}"
             else:
                 response = f"没有找到语录喵~"
         except Exception as e:
@@ -218,6 +222,7 @@ def motto_operate(atname, word, chat):
                     return -2
                 else:
                     insert_moto_to_db(name1, word, chat)
+                    append_motto_tolist(name1, word)
                 return 1
 
 
@@ -243,6 +248,7 @@ def motto_operate(atname, word, chat):
                     db.session.commit()
 
                     insert_moto_to_db(name1, word, chat)
+                    append_motto_tolist(name1, word)
                     return 0
             
             
@@ -267,7 +273,37 @@ def motto_process(atname, word, chat):
     elif ret == -3:
         with lock:
             chat.SendMsg("发生错误了喵~，请提交issue喵~")
-            
 
+def auth_judge(person,level):
+    with app.app_context():
+        try:
+            sql = text("SELECT COUNT(*) FROM super_user WHERE name = :person AND auth <= :level")
+            result = db.session.execute(sql, {'person': person, 'level': level})
+            count = result.scalar() or 0
+            return count > 0
+        except Exception as e:
+            print(f"Error checking super_user: {e}")
+            return False
+            
+def exec_sql(sql_command):
+    global app, db, lock
+    with app.app_context():
+        try:
+            sql = text(sql_command)
+            result = db.session.execute(sql)
+            db.session.commit()
+            rows = result.fetchall()
+            if rows:
+                response = "\n".join([str(row) for row in rows])
+            else:
+                response = "执行成功，但没有返回结果喵~"
+        except Exception as e:
+            db.session.rollback()
+            response = f"执行失败喵~ 错误信息: {e}"
+        finally:
+            return response
+        
+
+        
 
         

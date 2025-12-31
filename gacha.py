@@ -1,12 +1,12 @@
 import os
 import numpy as np
 class GachaSimulator:
-    def __init__(self, base_prob=0.11, prob_increment=0.18, increase_after=5):
+    def __init__(self, base_prob=0.11, prob_increment=0.18, increase_after=5, last_count=5):
         self.increase_after = increase_after
         self.base_prob = base_prob
         self.prob_increment = prob_increment
         self.max_prob = 1
-        self.count = 0
+        self.count = last_count
         self.bigcount = 0
 
     def draw(self):
@@ -21,7 +21,10 @@ class GachaSimulator:
                 self.bigcount = 0
                 return 2
         else:
-            return 0            
+            return 0 
+
+    def get_count(self):
+        return self.count           
         
     
 if __name__ == "__main__":
