@@ -66,7 +66,7 @@ def select_record_by_time(group, minutes=10):
     with app.app_context():
         sql = text("""
         SELECT * FROM record WHERE chat = :group AND time >= NOW() - INTERVAL :minutes MINUTE
-        ORDER BY id DESC OFFSET 1""")
+        ORDER BY id DESC LIMIT 10000 OFFSET 1""")
         params = {'group': group, 'minutes': minutes}
         result = db.session.execute(sql, params)
         return result.fetchall()
