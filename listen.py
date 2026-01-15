@@ -30,41 +30,17 @@ pool2_executor = ThreadPoolExecutor(max_workers=5)
 pool3_executor = ThreadPoolExecutor(max_workers=5)
 wx = WeChat()
 greet = '''Ciallo～(∠・ω< )⌒★,
-这里是代号：泛用型小樊（还没拿到版号555）
+这里是小樊bot喵~
 
-命令前加斜杠：
-help查看本消息
-总结 [条目数/分钟数][条/分]
-来一份图
-抽卡
-issue
-班味排行榜
-班味比重榜
-收录@群友
-语录@群友
+命令前加斜杠，详细使用说明见：
+https://github.com/johnfans/cafe_bot
+欢迎大家前来贡献与反馈
 
-找真人小樊询问详细使用方法。
+
 根据相关规定，应答时间调整至3-5秒，且2点-8点不会应答消息。
-问就是未成年人保护系统。
-'''
-'''
-
-/help 查看本消息
-
-
-/总结 [条目/时间] [条目数/分钟数] [群内/私聊] 使用llm总结聊天记录
-可简化为 /总结 [条目数/分钟数][条/分]
-示例：/总结 条目 100 群内 或/总结 100条，意思是总结当前最新的100条群消息
-
-/来一份图 来一份二次元美图（感谢东来哥的api）
-
-/issue [内容] bug反馈
-
-/班味排行榜 
-
-注：私聊选项目前尚未测试，可能不太好使。
 
 '''
+
 
 
 def insert_message_to_db(group,msg):
@@ -292,7 +268,7 @@ def order_analysis(msg, chat, group):
                 if ("已收录：" in word) or ("以下是" in word):
                     chat.SendMsg(f'禁止套娃！喵~')
                 else:
-                    if service_judge(msg.sender,"motto",group,1440,5):
+                    if service_judge(msg.sender,"motto",group,1440,10):
                         person = msg.content.split('\n')[0].split('@')[1]
                         pool2_executor.submit(motto_process, person, word, chat)
                     else:
