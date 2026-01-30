@@ -357,10 +357,13 @@ def order_analysis(msg, chat, group):
                 chat.SendMsg(f'不知道你在说什么喵~？')
 
         elif parts[0][1:5] == 'sudo':
-            if auth_judge(msg.sender,0):
+            if auth_judge(msg.sender,2):
                 if parts[1] == 'sql':
                     sql_command = msg.content.split('\n',1)[1]
-                    result = exec_sql(sql_command)
+                    if auth_judge(msg.sender,0):
+                        result = exec_sql(sql_command,0)
+                    else:
+                        result = exec_sql(sql_command,1)
                     chat.SendMsg(f'SQL执行结果喵~：\n{result}')
             else:
                 chat.SendMsg(f'你没有权限使用喵~')

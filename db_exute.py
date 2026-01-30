@@ -14,7 +14,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_POOL_SIZE'] = 15
 app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
 
+app2 = Flask(__name__)
+app2.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://guest:qwerty@localhost:3306/wx_record'
+app2.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app2.config['SQLALCHEMY_POOL_SIZE'] = 15
+app2.config['SQLALCHEMY_POOL_TIMEOUT'] = 30
+
 db = SQLAlchemy(app)
+db2 = SQLAlchemy(app2)
 
 with app.app_context():
     results=db.session.execute(text("SELECT * FROM moto ORDER BY RAND()"))
@@ -287,23 +294,40 @@ def auth_judge(person,level):
             print(f"Error checking super_user: {e}")
             return False
             
-def exec_sql(sql_command):
-    global app, db, lock
-    with app.app_context():
-        try:
-            sql = text(sql_command)
-            result = db.session.execute(sql)
-            db.session.commit()
-            rows = result.fetchall()
-            if rows:
-                response = "\n".join([str(row) for row in rows])
-            else:
-                response = "执行成功，但没有返回结果喵~"
-        except Exception as e:
-            db.session.rollback()
-            response = f"执行失败喵~ 错误信息: {e}"
-        finally:
-            return response
+def exec_sql(sql_command,auth):
+    global app, app2, db, db2, lock
+    if auth == 0:
+        with app.app_context():
+            try:
+                sql = text(sql_command)
+                result = db.session.execute(sql)
+                db.session.commit()
+                rows = result.fetchall()
+                if rows:
+                    response = "\n".join([str(row) for row in rows])
+                else:
+                    response = "执行成功，但没有返回结果喵~"
+            except Exception as e:
+                db.session.rollback()
+                response = f"执行失败喵~ 错误信息: {e}"
+            finally:
+                return response
+    else:
+        with app2.app_context():
+            try:
+                sql = text(sql_command)
+                result = db2.session.execute(sql)
+                db2.session.commit()
+                rows = result.fetchall()
+                if rows:
+                    response = "\n".join([str(row) for row in rows])
+                else:
+                    response = "执行成功，但没有返回结果喵~"
+            except Exception as e:
+                db2.session.rollback()
+                response = f"执行失败喵~ 错误信息: {e}"
+            finally:
+                return response
         
 
         
