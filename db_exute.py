@@ -207,7 +207,7 @@ def service_judge(person,service,group,time,threshold):
             finally:
                 return True
             
-def motto_operate(atname, word, chat):
+def motto_operate(atname, word, chat, mnum=1):
     global app, db, lock
     with app.app_context():
         try:
@@ -220,16 +220,38 @@ def motto_operate(atname, word, chat):
 
             if name2:
                 sql = text("""
-                SELECT name FROM record WHERE time >= NOW() - INTERVAL 12 HOUR
+                SELECT name, id, time FROM record WHERE time >= NOW() - INTERVAL 12 HOUR
                 AND content = :word AND name = :name2
                 ORDER BY id DESC LIMIT 1
                 """)
                 params = {'word': word, 'name2': name2}
                 result = db.session.execute(sql, params)
-                name1 = result.scalar()
+                row = result.fetchone()
+                if row:
+                    name1 = row[0]
+                    rec_id = row[1]
+                    rec_time = row[2]
+                else:
+                    name1 = None
+                    rec_id = None
+                    rec_time = None
+                
                 if name1 is None:
                     return -2
                 else:
+                    if mnum > 1:
+                        sql = text("""
+                        select content from record 
+                        where name = :name1 AND id <= :rec_id AND time<= :rec_time
+                        ORDER BY time DESC 
+                        LIMIT :mnum
+                        """)
+                        params = {'name1': name1, 'rec_id': rec_id, 'rec_time': rec_time, 'mnum': mnum}
+                        result = db.session.execute(sql, params)
+                        rows = result.fetchall()
+                        # 倒序遍历 rows 并用空格拼接成 word 
+                        word = " ".join(str(r[0]) for r in reversed(rows))
+                        
                     insert_moto_to_db(name1, word, chat)
                     append_motto_tolist(name1, word)
                 return 1
@@ -237,13 +259,22 @@ def motto_operate(atname, word, chat):
 
             else:
                 sql = text("""
-                SELECT name FROM record WHERE time >= NOW() - INTERVAL 12 HOUR
+                SELECT name, id, time FROM record WHERE time >= NOW() - INTERVAL 12 HOUR
                 AND content = :word 
                 ORDER BY id DESC LIMIT 1
                 """)
                 params = {'word': word}
                 result = db.session.execute(sql, params)
-                name1 = result.scalar()
+                row = result.fetchone()
+                if row:
+                    name1 = row[0]
+                    rec_id = row[1]
+                    rec_time = row[2]
+                else:
+                    name1 = None
+                    rec_id = None
+                    rec_time = None
+                
                 if name1 is None:
                     return -1
                 
@@ -255,6 +286,18 @@ def motto_operate(atname, word, chat):
                     params = {'atname': atname, 'name': name1}
                     db.session.execute(sql, params)
                     db.session.commit()
+                    if mnum > 1:
+                        sql = text("""
+                        select content from record 
+                        where name = :name1 AND id <= :rec_id AND time<= :rec_time
+                        ORDER BY time DESC 
+                        LIMIT :mnum
+                        """)
+                        params = {'name1': name1, 'rec_id': rec_id, 'rec_time': rec_time, 'mnum': mnum}
+                        result = db.session.execute(sql, params)
+                        rows = result.fetchall()
+                        # 倒序遍历 rows 并用空格拼接成 word 
+                        word = " ".join(str(r[0]) for r in reversed(rows))
 
                     insert_moto_to_db(name1, word, chat)
                     append_motto_tolist(name1, word)
@@ -267,9 +310,9 @@ def motto_operate(atname, word, chat):
             db.session.rollback()
             return -3
         
-def motto_process(atname, word, chat):
+def motto_process(atname, word, chat, mnum=1):
     global app, db, lock
-    ret=motto_operate(atname, word, chat)
+    ret=motto_operate(atname, word, chat, mnum)
     if ret == -1:
         with lock:
             chat.SendMsg("找不到引用喵~")

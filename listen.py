@@ -268,11 +268,19 @@ def order_analysis(msg, chat, group):
                 if ("已收录：" in word) or ("以下是" in word):
                     chat.SendMsg(f'禁止套娃！喵~')
                 else:
-                    if service_judge(msg.sender,"motto",group,1440,10):
-                        person = msg.content.split('\n')[0].split('@')[1]
-                        pool2_executor.submit(motto_process, person, word, chat)
+                    if parts[0][1:5] == '收录多条' and len(parts) >=2:
+                        if service_judge(msg.sender,"motto",group,1440,10):
+                            person = msg.content.split('\n')[0].split('@')[1]
+                            mnum = int(parts[1].split('@')[0])
+                            if mnum >10:
+                                mnum =10
+                            pool2_executor.submit(motto_process, person, word, chat, mnum)
                     else:
-                        chat.SendMsg("24小时之内只能收录5次喵~")
+                        if service_judge(msg.sender,"motto",group,1440,10):
+                            person = msg.content.split('\n')[0].split('@')[1]
+                            pool2_executor.submit(motto_process, person, word, chat)
+                        else:
+                            chat.SendMsg("24小时之内只能收录10次喵~")
             else:
                 chat.SendMsg(f'不知道你在说什么喵~？')
 
