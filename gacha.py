@@ -1,7 +1,7 @@
 import os
 import numpy as np
 class GachaSimulator:
-    def __init__(self, base_prob=0.11, prob_increment=0.18, increase_after=5, last_count=5):
+    def __init__(self, base_prob=0.5, prob_increment=0.2, increase_after=0, last_count=0):
         self.increase_after = increase_after
         self.base_prob = base_prob
         self.prob_increment = prob_increment

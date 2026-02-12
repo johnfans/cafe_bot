@@ -187,7 +187,7 @@ def chouka_process(result,chat):
             file = np.random.choice(os.listdir("./1"))
             chat.SendMsg('喵~五星常驻，'+file.split('.')[0])
         elif result == 2:
-            chat.SendMsg('五星限定，园酱喵~')
+            chat.SendMsg('五星限定，彩虹果酱w-千咲喵~')
             file = np.random.choice(os.listdir("./2"))
         chat.SendFiles(f'./{result}/{file}')
 
@@ -268,13 +268,19 @@ def order_analysis(msg, chat, group):
                 if ("已收录：" in word) or ("以下是" in word):
                     chat.SendMsg(f'禁止套娃！喵~')
                 else:
-                    if parts[0][1:5] == '收录多条' and len(parts) >=2:
+                    if parts[0][1:5] == '收录多条':
                         if service_judge(msg.sender,"motto",group,1440,10):
                             person = msg.content.split('\n')[0].split('@')[1]
-                            mnum = int(parts[1].split('@')[0])
+                            if len(parts) >= 2:
+                                mnum = int(parts[1].split('@')[0])
+                            else:
+                                mnum = int(msg.content.split('条')[1].split('@')[0])
                             if mnum >10:
                                 mnum =10
                             pool2_executor.submit(motto_process, person, word, chat, mnum)
+                        else:
+                            chat.SendMsg("24小时之内只能收录10次喵~")
+                                
                     else:
                         if service_judge(msg.sender,"motto",group,1440,10):
                             person = msg.content.split('\n')[0].split('@')[1]

@@ -250,7 +250,16 @@ def motto_operate(atname, word, chat, mnum=1):
                         result = db.session.execute(sql, params)
                         rows = result.fetchall()
                         # 倒序遍历 rows 并用空格拼接成 word 
-                        word = " ".join(str(r[0]) for r in reversed(rows))
+                        parts = []
+                        for r in reversed(rows):
+                            s = r[0]
+                            if s is None:
+                                continue
+                            s = str(s)
+                            if ('[' in s) and (']' in s):
+                                continue
+                            parts.append(s)
+                        word = " ".join(parts)
                         
                     insert_moto_to_db(name1, word, chat)
                     append_motto_tolist(name1, word)
@@ -297,7 +306,16 @@ def motto_operate(atname, word, chat, mnum=1):
                         result = db.session.execute(sql, params)
                         rows = result.fetchall()
                         # 倒序遍历 rows 并用空格拼接成 word 
-                        word = " ".join(str(r[0]) for r in reversed(rows))
+                        parts = []
+                        for r in reversed(rows):
+                            s = r[0]
+                            if s is None:
+                                continue
+                            s = str(s)
+                            if ('[' in s) and (']' in s):
+                                continue
+                            parts.append(s)
+                        word = " ".join(parts)
 
                     insert_moto_to_db(name1, word, chat)
                     append_motto_tolist(name1, word)

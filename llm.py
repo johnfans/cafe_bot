@@ -17,10 +17,10 @@ def llm(text,job="你是一个聊天记录总结器。"):
     try:
         response = client.chat.completions.create(
             # 替换 <Model> 为Model ID
-            model="doubao-seed-1-6-flash-250828",
+            model="doubao-seed-1-8-251228",
             messages=[
-                {"role": "system", "content": job},
-                {"role": "user", "content": text}
+                {"role": "user", "content": text},
+                {"role": "system", "content": job}
             ]
         )
         return response.choices[0].message.content.replace('*','')
