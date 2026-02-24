@@ -12,12 +12,12 @@ client = Ark(
     )
 
 
-def llm(text,job="你是一个聊天记录总结器。"):
+def llm(text,job="请你总结上述群聊的聊天记录"):
     global client
     try:
-        response = client.chat.completions.create(
+        response = client.bot_chat.completions.create(
             # 替换 <Model> 为Model ID
-            model="doubao-seed-1-8-251228",
+            model="bot-20260213105916-xkpvc",
             messages=[
                 {"role": "user", "content": text},
                 {"role": "system", "content": job}
@@ -2439,4 +2439,4 @@ Ifrit: 那我必须退群了
 星海未来: 今天该看 summer pocket 了
 Self: /获取 时间 14400 群内
 '''
-    print(llm(text,job = "在以下的消息记录中，请你总结谁讨论上班话题最多，并给出排名"))
+    print(llm(text))

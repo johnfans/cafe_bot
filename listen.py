@@ -127,14 +127,14 @@ def analyze_process(chat, count, group, type, prompt):
 def toil_rank(chat):
     records = select_record_by_time(chat.who, 1430)
     text_content = "\n".join([f"{record.name}: {record.content}" for record in reversed(records)])
-    response = llm(text_content,job="在以下的消息记录中，请你统计谁讨论上班话题最多，并给出排名")
+    response = llm(text_content,job="在以上的消息记录中，请你统计谁讨论上班话题最多，并给出排名")
     with lock:
         chat.SendMsg(response)
 
 def toil_rank2(chat):
     records = select_record_by_time(chat.who, 1430)
     text_content = "\n".join([f"{record.name}: {record.content}" for record in reversed(records)])
-    response = llm(text_content,job="在以下的消息记录中，请你统计谁讨论上班话题所占其发言的比重最高，并给出排名")
+    response = llm(text_content,job="在以上的消息记录中，请你统计谁讨论上班话题所占其发言的比重最高，并给出排名")
     with lock:
         chat.SendMsg(response)
 
