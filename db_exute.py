@@ -263,7 +263,7 @@ def motto_operate(atname, word, chat, mnum=1):
                             if s is None:
                                 continue
                             s = str(s)
-                            if ('[' in s) and (']' in s):
+                            if s[0] == '[' and s[-1] == ']':
                                 continue
                             parts.append(s)
                         word = " ".join(parts)
@@ -319,7 +319,7 @@ def motto_operate(atname, word, chat, mnum=1):
                             if s is None:
                                 continue
                             s = str(s)
-                            if ('[' in s) and (']' in s):
+                            if s[0] == '[' and s[-1] == ']':
                                 continue
                             parts.append(s)
                         word = " ".join(parts)
