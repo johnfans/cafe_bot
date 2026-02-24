@@ -166,12 +166,14 @@ def setu_process(chat):
         global wx
         with lock:
             chat.SendMsg('好吧好吧，就给你一张吧，喵~')
-        filename = download_image()
+        filename, id = download_image()
         # files = os.listdir('./temp')
         # filename = random.choice(files) if files else None
         with lock:
             if filename:
                 chat.SendFiles(f'./temp/{filename}')
+                time.sleep(0.2)
+                chat.SendMsg(f'pid：{id}')
             else:
                 chat.SendMsg('下载图片失败了呢，呜喵~')
     except Exception as e:
