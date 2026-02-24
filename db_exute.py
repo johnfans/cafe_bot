@@ -108,23 +108,30 @@ def select_moto_with_keyword(name,chat,keyword):
     global app, db, lock
     with app.app_context():
         try:
-            sql = text("""
-            SELECT m.word
-            FROM name_relate nr
-            JOIN moto m ON nr.name = m.name
-            WHERE nr.atname = :atname
-            """)
-            params = {'atname': name}
+            if name:
+                sql = text("""
+                SELECT m.word
+                FROM name_relate nr
+                JOIN moto m ON nr.name = m.name
+                WHERE nr.atname = :atname
+                AND m.word LIKE :keyword
+                """)
+                params = {'atname': name, 'keyword': f'%{keyword}%'}
+            else:
+                sql = text("""
+                SELECT word,name FROM moto
+                WHERE word LIKE :keyword
+                """)
+                params = {'keyword': f'%{keyword}%'}
             result = db.session.execute(sql, params)
             motos=result.fetchall()
             if motos:
-                filtered = [moto.word for moto in motos if keyword in moto.word]
-                if filtered:
-                    response = f"以下是{name}包含{keyword}的语录喵~\n\n" + ("\n".join(filtered))
+                if name:
+                    response = f"以下是{name}包含{keyword}的语录喵~\n\n" + ("\n".join([moto[0] for moto in motos]))
                 else:
-                    response = f"没有找到{name}包含{keyword}的语录喵~"
+                    response = f"以下是包含{keyword}的语录喵~\n\n" + ("\n".join([f"{moto[0]}—— {moto[1]}" for moto in motos]))
             else:
-                response = f"没有找到{name}的语录喵~"
+                response = f"没有找到{name}包含{keyword}的语录喵~"
             
         except Exception as e:
             print(f"Error selecting moto from DB: {e}")

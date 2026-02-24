@@ -305,11 +305,12 @@ def order_analysis(msg, chat, group):
                     person = msg.content.split('\n')[0].split('@')[1]
                     pool2_executor.submit(select_moto, person, chat)
             
-            elif parts[0][1:5] == '语录随机':
-                pool2_executor.submit(select_moto_random, chat)
-
             else:
-                chat.SendMsg(f'不知道你在说什么喵~？')
+                if parts[0][1:5] == '语录随机':
+                    pool2_executor.submit(select_moto_random, chat)
+                elif parts[0][1:5] == '语录检索' and len(parts) >=2:
+                    keyword = parts[1]
+                    pool2_executor.submit(select_moto_with_keyword, "", chat, keyword)
 
         elif parts[0][1:3] == '抽卡':
             if group == "咖啡馆大群":
