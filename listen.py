@@ -166,12 +166,14 @@ def setu_process(chat):
         global wx
         with lock:
             chat.SendMsg('好吧好吧，就给你一张吧，喵~')
-        filename = download_image()
+        filename, id = download_image()
         # files = os.listdir('./temp')
         # filename = random.choice(files) if files else None
         with lock:
             if filename:
                 chat.SendFiles(f'./temp/{filename}')
+                time.sleep(0.2)
+                chat.SendMsg(f'pid：{id}')
             else:
                 chat.SendMsg('下载图片失败了呢，呜喵~')
     except Exception as e:
@@ -305,11 +307,12 @@ def order_analysis(msg, chat, group):
                     person = msg.content.split('\n')[0].split('@')[1]
                     pool2_executor.submit(select_moto, person, chat)
             
-            elif parts[0][1:5] == '语录随机':
-                pool2_executor.submit(select_moto_random, chat)
-
             else:
-                chat.SendMsg(f'不知道你在说什么喵~？')
+                if parts[0][1:5] == '语录随机':
+                    pool2_executor.submit(select_moto_random, chat)
+                elif parts[0][1:5] == '语录检索' and len(parts) >=2:
+                    keyword = parts[1]
+                    pool2_executor.submit(select_moto_with_keyword, "", chat, keyword)
 
         elif parts[0][1:3] == '抽卡':
             if group == "咖啡馆大群":

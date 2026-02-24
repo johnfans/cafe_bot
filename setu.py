@@ -1,7 +1,6 @@
 import os
 import requests
 from urllib.parse import urlparse
-import uuid
 import time
 
 def download_image():
@@ -11,10 +10,9 @@ def download_image():
             response = requests.get(url, stream=True)
             response.raise_for_status()
             # 获取文件扩展名
-            parsed = urlparse(url)
-            ext = os.path.splitext(parsed.path)[1] or '.jpg'
+            parsed = urlparse(response.url).path.split('/')[1].split('.')[0]
             # 生成唯一文件名
-            filename = f"{uuid.uuid4().hex}{ext}"
+            filename = parsed+'.jpg'
             save_dir = './temp'
             os.makedirs(save_dir, exist_ok=True)
             filepath = os.path.join(save_dir, filename)
@@ -28,11 +26,11 @@ def download_image():
             continue
 
         else:
-            return filename
-    return False
+            return filename,parsed
+    return False,False
 
     
 
 if __name__ == '__main__':
-    ret=download_image()
-    print(ret)
+    fn,id=download_image()
+    print(fn,id)
