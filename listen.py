@@ -173,7 +173,7 @@ def setu_process(chat):
             if filename:
                 chat.SendFiles(f'./temp/{filename}')
                 time.sleep(0.2)
-                chat.SendMsg(f'pid：{id}')
+                chat.SendMsg(f'pid：{id}喵~')
             else:
                 chat.SendMsg('下载图片失败了呢，呜喵~')
     except Exception as e:
