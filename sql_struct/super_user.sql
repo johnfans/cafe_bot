@@ -30,8 +30,6 @@ CREATE TABLE `super_user`  (
 -- ----------------------------
 -- Records of super_user
 -- ----------------------------
-INSERT INTO `super_user` VALUES ('海星来来', 1);
-INSERT INTO `super_user` VALUES ('山中大学陈子俊', 1);
-INSERT INTO `super_user` VALUES ('self', 0);
+
 
 SET FOREIGN_KEY_CHECKS = 1;
