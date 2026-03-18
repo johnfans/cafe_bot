@@ -17,7 +17,7 @@ def llm(text,job="请你总结上述群聊的聊天记录"):
     try:
         response = client.bot_chat.completions.create(
             # 替换 <Model> 为Model ID
-            model="bot-20260213105916-xkpvc",
+            model="doubao-seed-1-8-251228",
             messages=[
                 {"role": "user", "content": text},
                 {"role": "system", "content": job}
