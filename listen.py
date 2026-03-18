@@ -313,6 +313,42 @@ def order_analysis(msg, chat, group):
                 elif parts[0][1:5] == '语录检索' and len(parts) >=2:
                     keyword = parts[1]
                     pool2_executor.submit(select_moto_with_keyword, "", chat, keyword)
+        
+        elif parts[0][1:5] == '对话收录':
+            if msg.type != 'quote':
+                chat.SendMsg(f'对话收录命令需要引用一条消息喵~')
+                return
+            word = msg.quote_content
+            num = min(int(parts[1]),20)
+            if service_judge(msg.sender,"dialogue",group,1440,10):
+                pool2_executor.submit(dialogue_process, word, chat, num)
+            else:
+                chat.SendMsg("24小时之内只能收录10次喵~")
+
+        elif parts[0][1:5] == '对话检索':
+            if service_judge(msg.sender,"chatpic",group,2,1):
+                if '@' in msg.content.split('\n')[0]:
+                    person = msg.content.split('\n')[0].split('@')[1]
+                    if len(parts) >= 2:
+                        keyword = parts[1].split('@')[0]
+                    else:
+                        keyword = ""
+                    pool2_executor.submit(dialogue_select, person, chat, keyword)
+                else:
+                    keyword = parts[1]
+                    pool2_executor.submit(dialogue_select, "", chat, keyword)
+            else:
+                chat.SendMsg("杂鱼，不要这么频繁地检索对话喵~")
+        
+        elif parts[0][1:5] == '对话随机':
+            if service_judge(msg.sender,"chatpic",group,2,1):
+                chat_pic = os.listdir('./chatmp')
+                if chat_pic:
+                    filename = random.choice(chat_pic)
+                    with lock:
+                        chat.SendFiles(f'./chatmp/{filename}')
+            else:
+                chat.SendMsg("杂鱼，不要这么频繁地检索对话喵~")
 
         elif parts[0][1:3] == '抽卡':
             if group == "咖啡馆大群":

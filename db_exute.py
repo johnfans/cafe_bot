@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 import random
 import threading
+import time
+from chatpic import *
 lock = threading.Lock()
 
 
@@ -227,7 +229,7 @@ def motto_operate(atname, word, chat, mnum=1):
 
             if name2:
                 sql = text("""
-                SELECT name, id, time FROM record WHERE time >= NOW() - INTERVAL 12 HOUR
+                SELECT name, id, time FROM record WHERE time >= NOW() - INTERVAL 24 HOUR
                 AND content = :word AND name = :name2
                 ORDER BY id DESC LIMIT 1
                 """)
@@ -275,7 +277,7 @@ def motto_operate(atname, word, chat, mnum=1):
 
             else:
                 sql = text("""
-                SELECT name, id, time FROM record WHERE time >= NOW() - INTERVAL 12 HOUR
+                SELECT name, id, time FROM record WHERE time >= NOW() - INTERVAL 24 HOUR
                 AND content = :word 
                 ORDER BY id DESC LIMIT 1
                 """)
@@ -350,6 +352,89 @@ def motto_process(atname, word, chat, mnum=1):
     elif ret == -3:
         with lock:
             chat.SendMsg("发生错误了喵~，请提交issue喵~")
+
+def dialogue_process(word, chat, num):
+    global app, db, lock
+    with app.app_context():
+        try:
+            sql = text("""
+            SELECT id FROM record 
+            WHERE content = :word AND time >= NOW() - INTERVAL 24 HOUR
+            ORDER BY id DESC LIMIT 1
+            """)
+            params = {'word': word}
+            result = db.session.execute(sql, params)
+            id = result.scalar()
+            if id is None:
+                response = "找不到引用喵~"
+            else:
+                sql = text("""
+                INSERT INTO chat_moto (start,end)
+                           values (:ids,:id);
+                """)
+                params = {'ids': id-num+1, 'id': id}
+                db.session.execute(sql, params)
+                db.session.flush()
+                chat_id=db.session.execute(text("SELECT LAST_INSERT_ID()")).scalar()
+                db.session.commit()
+                sql = text("""
+                SELECT name,content FROM record
+                WHERE id BETWEEN :ids AND :id""")
+                params = {'ids': id-num+1, 'id': id}
+                result = db.session.execute(sql, params)
+                chats = result.fetchall()
+                generate_chat_image(chats, save_path=f"./chatmp/{chat_id}.jpg")
+                time.sleep(0.2)
+                response = "已收录对话喵~"
+                with lock:
+                    chat.SendFiles(f"./chatmp/{chat_id}.jpg")
+                time.sleep(0.5)
+                
+            
+        except Exception as e:
+            print(f"Error selecting dialogue from DB: {e}")
+            response = "查询失败喵~"
+
+        finally:
+            with lock:
+                chat.SendMsg(response)
+
+def dialogue_select(person,chat,keyword):
+    global app, db, lock
+    with app.app_context():
+        try:
+            if person == "":
+                sql = text("""
+                SELECT cm.id FROM record r
+                JOIN chat_moto cm ON r.id BETWEEN cm.start AND cm.end
+                WHERE r.content LIKE :keyword
+                ORDER BY cm.id DESC LIMIT 1
+                """)
+                params = {'keyword': f'%{keyword}%'}
+            else:
+                sql = text("""
+                SELECT cm.id FROM record r
+                JOIN chat_moto cm ON r.id BETWEEN cm.start AND cm.end
+                WHERE r.content LIKE :keyword AND r.name = :person
+                ORDER BY cm.id DESC LIMIT 1
+                """)
+                params = {'keyword': f'%{keyword}%', 'person': person}
+            result = db.session.execute(sql, params)
+            chat_id=result.scalar()
+            if chat_id:
+                with lock:
+                    chat.SendFiles(f"./chatmp/{chat_id}.jpg")
+                response = "已找到相关对话喵~"
+            else:
+                response = f"没有找到相应的对话喵~"
+            
+        except Exception as e:
+            print(f"Error selecting dialogue from DB: {e}")
+            response = "查询失败喵~"
+
+        finally:
+            with lock:
+                chat.SendMsg(response)
 
 def auth_judge(person,level):
     with app.app_context():
