@@ -215,3 +215,4 @@ wxauto_logs/
 2/
 *.png
 *.jpg
+llmtest.py

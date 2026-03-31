@@ -277,8 +277,8 @@ def order_analysis(msg, chat, group):
                                 mnum = int(parts[1].split('@')[0])
                             else:
                                 mnum = int(msg.content.split('条')[1].split('@')[0])
-                            if mnum >10:
-                                mnum =10
+                            if mnum >20:
+                                mnum =20
                             pool2_executor.submit(motto_process, person, word, chat, mnum)
                         else:
                             chat.SendMsg("24小时之内只能收录10次喵~")
@@ -319,6 +319,9 @@ def order_analysis(msg, chat, group):
                 chat.SendMsg(f'对话收录命令需要引用一条消息喵~')
                 return
             word = msg.quote_content
+            if word[0]=='[' and word[-1]==']':
+                chat.SendMsg(f'请引用文字消息喵~')
+                return
             num = min(int(parts[1]),20)
             if service_judge(msg.sender,"dialogue",group,1440,10):
                 pool2_executor.submit(dialogue_process, word, chat, num)

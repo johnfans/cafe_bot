@@ -1,14 +1,14 @@
 from PIL import Image, ImageDraw, ImageFont
 
 # -------------------------- 基础配置 --------------------------
-WIDTH = 675
-PADDING = 20
-NICK_SIZE = 14
-TEXT_SIZE = 16
-BUBBLE_RADIUS = 12
-BUBBLE_PAD = 14
-LINE_SPACE = 6
-MSG_GAP = 18
+WIDTH = 720
+PADDING = 40
+NICK_SIZE = 28
+TEXT_SIZE = 32
+BUBBLE_RADIUS = 24
+BUBBLE_PAD = 28
+LINE_SPACE = 12
+MSG_GAP = 36
 
 BG_COLOR = (245, 245, 245)
 NICK_COLOR = (184, 184, 184)
@@ -73,7 +73,7 @@ def generate_chat_image(messages, save_path="chat.png"):
             total_text_h += (len(lines)-1) * LINE_SPACE
 
         text_w = max(temp_draw.textlength(line, font=font_text) for line in lines) if lines else 0
-        bubble_w = max(nick_w, text_w) + BUBBLE_PAD * 2
+        bubble_w = text_w + BUBBLE_PAD * 2
         bubble_h = total_text_h + BUBBLE_PAD * 2
         block_h = NICK_SIZE + 6 + bubble_h
 
@@ -94,7 +94,7 @@ def generate_chat_image(messages, save_path="chat.png"):
 
     for b in blocks:
         # 昵称
-        draw.text((PADDING, b["y"]), b["nick"], fill=NICK_COLOR, font=font_nick)
+        draw.text((PADDING+10, b["y"]-5), b["nick"], fill=NICK_COLOR, font=font_nick)
 
         # 气泡
         by = b["y"] + NICK_SIZE + 4
@@ -103,6 +103,13 @@ def generate_chat_image(messages, save_path="chat.png"):
         by1 = by
         by2 = by + b["bubble_h"]
         draw.rounded_rectangle([(bx1, by1), (bx2, by2)], radius=BUBBLE_RADIUS, fill=BUBBLE_COLOR)
+        # 气泡左侧的小三角
+        triangle_points = [
+            (bx1 - 16, by1 + 44),
+            (bx1, by1 + 36),
+            (bx1, by1 + 52)
+        ]
+        draw.polygon(triangle_points, fill=BUBBLE_COLOR)
 
         # 文字（逐行）
         ty = by + BUBBLE_PAD
@@ -116,8 +123,8 @@ def generate_chat_image(messages, save_path="chat.png"):
 
 if __name__ == "__main__":
     messages = [
-    ["海星来来", "我昨晚做梦梦见理发师给我整了个沛之的发型，我照了下镜子觉得还不如我现在的，然后我就被吓醒了。"],
-    ["海星来来", "发型这个事儿真的还是得看人来做设计，不是所有好看的发型都适合自己。"],
+    ["海星来来", "？"],
+    ["海星来来", "发型这个事儿真的还是得看人来做设计，不是所有好看的发型都适合自己。加上快递费技术附件上飞机合计符合说us会发货速"],
     ["小明", "哈哈哈哈太真实了，有时候真的是看脸，我也踩过很多雷。"],
 ]
     generate_chat_image(messages)
