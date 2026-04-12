@@ -429,9 +429,9 @@ def order_analysis(msg, chat, group):
 
         elif parts[0][1:2] == '问':
             prompt = parts[1]
-            if parts[0][2:-1] == '豆包' or parts[0][2:-1] == 'doubao':
+            if parts[0][2:] == '豆包' or parts[0][2:] == 'doubao':
                 model = "doubao"
-            elif parts[0][2:-1] == 'Gemini' or parts[0][2:-1] == 'gemini':
+            elif parts[0][2:] == 'Gemini' or parts[0][2:] == 'gemini':
                 model = "gemini"
             else:
                 model = "doubao"
