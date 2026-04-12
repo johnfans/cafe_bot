@@ -9,9 +9,11 @@ from setu import *
 from llm import *
 from gacha import *
 from db_exute import *
+from aiapi import *
 import threading
 import os
 import random
+
 
 import numpy as np
 
@@ -178,6 +180,19 @@ def setu_process(chat):
                 chat.SendMsg('下载图片失败了呢，呜喵~')
     except Exception as e:
         print(f"Error in setu_process: {e}")
+
+def ai_answer(chat, prompt, model):
+    if model == "doubao":
+        answer = query_doubao_api(prompt)
+    elif model == "gemini":
+        answer = query_pdl_api(prompt)
+    else:
+        answer = query_doubao_api(prompt)
+    with lock:
+        if answer:
+            chat.SendMsg(answer)
+        else:
+            chat.SendMsg("AI接口请求失败了呢，呜喵~")
 
 def chouka_process(result,chat):
     
@@ -411,6 +426,17 @@ def order_analysis(msg, chat, group):
             
             else:
                 chat.SendMsg(f'不知道你在说什么喵~？')
+
+        elif parts[0][1:2] == '问':
+            prompt = parts[1]
+            if parts[0][2:-1] == '豆包' or parts[0][2:-1] == 'doubao':
+                model = "doubao"
+            elif parts[0][2:-1] == 'Gemini' or parts[0][2:-1] == 'gemini':
+                model = "gemini"
+            else:
+                model = "doubao"
+            chat.SendMsg(f'你的问题已收到喵~，正在思考中喵~')
+            pool3_executor.submit(ai_answer, chat, prompt, model)
 
         elif parts[0][1:5] == 'sudo':
             if auth_judge(msg.sender,2):
